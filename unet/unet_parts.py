@@ -3,7 +3,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from activation import *
+from .activation import *
 
 
 class DoubleConv(nn.Module):
