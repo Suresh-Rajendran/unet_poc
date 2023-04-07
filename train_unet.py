@@ -29,6 +29,7 @@ def train_model(
         device,
         epochs: int = 5,
         batch_size: int = 1,
+        act_func='esh',
         learning_rate: float = 1e-5,
         val_percent: float = 0.1,
         save_checkpoint: bool = True,
@@ -55,15 +56,16 @@ def train_model(
     val_loader = DataLoader(val_set, shuffle=False, drop_last=True, **loader_args)
 
     # (Initialize logging)
-    experiment = wandb.init(project='U-Net', resume='allow', anonymous='must')
-    experiment.config.update(
-        dict(epochs=epochs, batch_size=batch_size, learning_rate=learning_rate,
+
+    wandb.config.update(
+        dict(learning_rate=learning_rate,
              val_percent=val_percent, save_checkpoint=save_checkpoint, img_scale=img_scale, amp=amp)
     )
 
     logging.info(f'''Starting training:
         Epochs:          {epochs}
         Batch size:      {batch_size}
+        Activation:      {act_func}
         Learning rate:   {learning_rate}
         Training size:   {n_train}
         Validation size: {n_val}
@@ -119,7 +121,7 @@ def train_model(
                 pbar.update(images.shape[0])
                 global_step += 1
                 epoch_loss += loss.item()
-                experiment.log({
+                wandb.log({
                     'train loss': loss.item(),
                     'step': global_step,
                     'epoch': epoch
@@ -143,7 +145,7 @@ def train_model(
 
                         logging.info('Validation Dice score: {}'.format(val_score))
                         try:
-                            experiment.log({
+                            wandb.log({
                                 'learning rate': optimizer.param_groups[0]['lr'],
                                 'validation Dice': val_score,
                                 'images': wandb.Image(images[0].cpu()),
@@ -184,7 +186,9 @@ def get_args():
 
 
 if __name__ == '__main__':
+
     args = get_args()
+    experiment = wandb.init(project='U-Net_V1')
 
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -211,8 +215,9 @@ if __name__ == '__main__':
     try:
         train_model(
             model=model,
-            epochs=args.epochs,
-            batch_size=args.batch_size,
+            epochs=wandb.config.epochs,
+            batch_size=wandb.config.batch_size,
+            act_func = wandb.config.act,
             learning_rate=args.lr,
             device=device,
             img_scale=args.scale,
@@ -227,8 +232,9 @@ if __name__ == '__main__':
         model.use_checkpointing()
         train_model(
             model=model,
-            epochs=args.epochs,
-            batch_size=args.batch_size,
+            epochs=wandb.config.epochs,
+            batch_size=wandb.config.batch_size,
+            act_func = wandb.config.act,
             learning_rate=args.lr,
             device=device,
             img_scale=args.scale,

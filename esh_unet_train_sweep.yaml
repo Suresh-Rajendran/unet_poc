@@ -1,0 +1,16 @@
+program: train_unet.py
+method: grid
+metric:
+  name: loss
+  goal: minimize
+parameters:
+  optimizer:
+    values: ["adam"]
+  batch_size:
+    values: [32]
+  epochs:
+    values: [2]
+  act:
+    values: ["relu", "mish", 'swish', 'esh', 'selu','gelu', 'leakyrelu']
+  version:
+    values: ['unet']
