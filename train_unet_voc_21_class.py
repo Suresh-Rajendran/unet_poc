@@ -31,8 +31,8 @@ def data_dir(voc_path = "/content/VOCdevkit/VOC2012"):
     trainval_file = os.path.join(voc_path, "ImageSets", "Segmentation", "trainval.txt")
 
     # define the paths to the imgs and masks folders
-    imgs_folder = "/content/unet_poc/data/imgs"
-    masks_folder = "/content/unet_poc/data/masks"
+    imgs_folder = "/content/unet_voc_21_class/data/imgs"
+    masks_folder = "/content/unet_voc_21_class/data/masks"
 
     # create the imgs and masks folders if they don't exist
     if not os.path.exists(imgs_folder):
@@ -240,7 +240,7 @@ if __name__ == '__main__':
     # Change here to adapt to your data
     # n_channels=3 for RGB images
     # n_classes is the number of probabilities you want to get per pixel
-    model = UNet(n_channels=3, n_classes=args.classes, bilinear=args.bilinear)
+    model = UNet(n_channels=3, n_classes=args.classes, bilinear=args.bilinear, act_func = wandb.config.act)
     model = model.to(memory_format=torch.channels_last)
 
     logging.info(f'Network:\n'
