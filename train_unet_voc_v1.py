@@ -23,14 +23,17 @@ sweep_config = {
     },
     'parameters': {
         'act': {
-            'values': ['esh', 'relu', 'gelu', 'mish']
+            'values': ["relu", "mish", 'swish', 'esh', 'selu','gelu', 'leakyrelu']
         },
         'batch_size': {
-            'values': [16]
+            'values': [32]
         },
         'epochs': {
-            'values': [2]
-        }
+            'values': [25]
+        },
+        'optimizer': {
+            'values': ["adam"]
+        },
     }
 }
 
@@ -151,7 +154,7 @@ def train(model_type='standard_unet'):
         model = UNet_Small(in_channels=3, out_channels=2).to(device)
         wandb.watch(model, log='all')
     elif model_type == 'standard_unet':
-        model = UNet(n_channels=3, n_classes=2).to(device)
+        model = UNet(n_channels=3, n_classes=2, act_func = wandb.config.act).to(device)
         wandb.watch(model, log='all')
     else:
         raise ValueError(f"Invalid model_type: {model_type}. Choose either 'small_unet' or 'standard_unet'.")
@@ -210,6 +213,6 @@ def train(model_type='standard_unet'):
 
 if __name__ == '__main__':
     wandb.login() #a96eb1d17152292d104d045304f8da02ab8fe0e1
-    sweep_id = wandb.sweep(sweep_config, project="unet-pascal-voc22")
+    sweep_id = wandb.sweep(sweep_config, project="unet-pascal-voc_Apr04")
 
     wandb.agent(sweep_id, function=sweep_train)

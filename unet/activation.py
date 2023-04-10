@@ -8,6 +8,7 @@ class Activation(nn.Module):
     def __init__(self, act = 'esh'):
         super(Activation, self).__init__()
         self.act = None
+        print(act)
         if act == "relu":
             self.act = nn.ReLU()
         elif act == "gelu":
