@@ -1,0 +1,16 @@
+program: train_unet_voc.py
+method: grid
+metric:
+  name: loss
+  goal: minimize
+parameters:
+  optimizer:
+    values: ["adam"]
+  batch_size:
+    values: [16]
+  epochs:
+    values: [20]
+  act:
+    values: ["relu", "mish", 'swish', 'esh', 'selu','gelu', 'leakyrelu']
+  version:
+    values: ['unet']
