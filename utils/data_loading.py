@@ -26,6 +26,7 @@ def load_image(filename):
 def unique_mask_values(idx, mask_dir, mask_suffix):
     mask_file = list(mask_dir.glob(idx + mask_suffix + '.*'))[0]
     mask = np.asarray(load_image(mask_file))
+    mask[mask==255]=0
     if mask.ndim == 2:
         return np.unique(mask)
     elif mask.ndim == 3:
@@ -64,7 +65,7 @@ class BasicDataset(Dataset):
     @staticmethod
     def preprocess(mask_values, pil_img, scale, is_mask):
         w, h = pil_img.size
-        newW, newH = int(scale * w), int(scale * h)
+        newW, newH = 256, 256
         assert newW > 0 and newH > 0, 'Scale is too small, resized images would have no pixel'
         pil_img = pil_img.resize((newW, newH), resample=Image.NEAREST if is_mask else Image.BICUBIC)
         img = np.asarray(pil_img)
@@ -74,6 +75,7 @@ class BasicDataset(Dataset):
             for i, v in enumerate(mask_values):
                 if img.ndim == 2:
                     mask[img == v] = i
+                    mask[img == 255] = 0
                 else:
                     mask[(img == v).all(-1)] = i
 
