@@ -3,6 +3,8 @@ import logging
 import os
 import random
 import sys
+import numpy as np
+from PIL import Image
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -18,6 +20,7 @@ from evaluate import evaluate
 from unet import UNet
 from utils.data_loading import BasicDataset, CarvanaDataset
 from utils.dice_score import dice_loss
+from utils.utils import class_label_to_img_voc
 import os
 import shutil
 
@@ -31,8 +34,8 @@ def data_dir(voc_path = "/content/VOCdevkit/VOC2012"):
     trainval_file = os.path.join(voc_path, "ImageSets", "Segmentation", "trainval.txt")
 
     # define the paths to the imgs and masks folders
-    imgs_folder = "/content/unet_voc_21_class/data/imgs"
-    masks_folder = "/content/unet_voc_21_class/data/masks"
+    imgs_folder = "/content/unet_poc/data/imgs"
+    masks_folder = "/content/unet_poc/data/masks"
 
     # create the imgs and masks folders if they don't exist
     if not os.path.exists(imgs_folder):
@@ -113,7 +116,7 @@ def train_model(
                               lr=learning_rate, weight_decay=weight_decay, momentum=momentum, foreach=True)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=5)  # goal: maximize Dice score
     grad_scaler = torch.cuda.amp.GradScaler(enabled=amp)
-    criterion = nn.CrossEntropyLoss() #if model.n_classes > 1 else nn.BCEWithLogitsLoss()
+    criterion = nn.CrossEntropyLoss(weight=dataset.class_weights.to(device)) #if model.n_classes > 1 else nn.BCEWithLogitsLoss()
     global_step = 0
 
     # 5. Begin training
@@ -188,8 +191,8 @@ def train_model(
                                 'validation Dice': val_score,
                                 'images': wandb.Image(images[0].cpu()),
                                 'masks': {
-                                    'true': wandb.Image(true_masks[0].float().cpu()),
-                                    'pred': wandb.Image(masks_pred.argmax(dim=1)[0].float().cpu()),
+                                    'true': wandb.Image(class_label_to_img_voc(true_masks[0].float().cpu().numpy())),
+                                    'pred': wandb.Image(class_label_to_img_voc(masks_pred.argmax(dim=1)[0].float().cpu().numpy())),
                                 },
                                 'step': global_step,
                                 'epoch': epoch,

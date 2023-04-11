@@ -35,6 +35,15 @@ def unique_mask_values(idx, mask_dir, mask_suffix):
     else:
         raise ValueError(f'Loaded masks should have 2 or 3 dimensions, found {mask.ndim}')
 
+def count_mask_values(idx, mask_dir, mask_suffix, num_classes):
+    mask_file = list(mask_dir.glob(idx + mask_suffix + '.*'))[0]
+    mask = np.asarray(load_image(mask_file))
+
+    unique, count = np.unique(mask.numpy(), return_counts=True)
+    counts = np.zeros(num_classes, dtype=np.float32)
+    counts[unique] += count
+
+    return counts
 
 class BasicDataset(Dataset):
     def __init__(self, images_dir: str, mask_dir: str, scale: float = 1.0, mask_suffix: str = ''):
@@ -58,6 +67,23 @@ class BasicDataset(Dataset):
 
         self.mask_values = list(sorted(np.unique(np.concatenate(unique), axis=0).tolist()))
         logging.info(f'Unique mask values: {self.mask_values}')
+        
+        logging.info('Scanning mask files to determine class weights')
+        with Pool() as p:
+            counts_list = list(tqdm(
+                p.imap(partial(count_mask_values, mask_dir=self.mask_dir, mask_suffix=self.mask_suffix, num_classes = len(self.mask_values)), self.ids),
+                total=len(self.ids)
+            ))
+
+        # Normalize the counts to get a probability distribution
+        counts = np.sum(counts_list, axis=0)
+        prob = counts / np.sum(counts)
+        
+        # Calculate class weights (inverse of probabilities)
+        self.class_weights = torch.tensor(1 / (prob + 1e-6))
+        logging.info(f'Class weights values: {self.class_weights.numpy()}')
+
+
 
     def __len__(self):
         return len(self.ids)
