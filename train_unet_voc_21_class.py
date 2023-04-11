@@ -191,8 +191,8 @@ def train_model(
                                 'validation Dice': val_score,
                                 'images': wandb.Image(images[0].cpu()),
                                 'masks': {
-                                    'true': wandb.Image(class_label_to_img_voc(true_masks[0].float().cpu().numpy())),
-                                    'pred': wandb.Image(class_label_to_img_voc(masks_pred.argmax(dim=1)[0].float().cpu().numpy())),
+                                    'true': wandb.Image(class_label_to_img_voc(true_masks[0].float().cpu())),
+                                    'pred': wandb.Image(class_label_to_img_voc(masks_pred.argmax(dim=1)[0].float().cpu())),
                                 },
                                 'step': global_step,
                                 'epoch': epoch,

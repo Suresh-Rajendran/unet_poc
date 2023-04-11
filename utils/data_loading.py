@@ -38,8 +38,9 @@ def unique_mask_values(idx, mask_dir, mask_suffix):
 def count_mask_values(idx, mask_dir, mask_suffix, num_classes):
     mask_file = list(mask_dir.glob(idx + mask_suffix + '.*'))[0]
     mask = np.asarray(load_image(mask_file))
-
-    unique, count = np.unique(mask.numpy(), return_counts=True)
+    mask[mask==255]=0
+    
+    unique, count = np.unique(mask, return_counts=True)
     counts = np.zeros(num_classes, dtype=np.float32)
     counts[unique] += count
 
