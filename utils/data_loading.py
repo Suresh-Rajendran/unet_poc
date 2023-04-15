@@ -11,6 +11,7 @@ from os.path import splitext, isfile, join
 from pathlib import Path
 from torch.utils.data import Dataset
 from tqdm import tqdm
+from torchvision.transforms import Compose, RandomHorizontalFlip, RandomVerticalFlip, RandomRotation
 
 
 def load_image(filename):
@@ -22,6 +23,13 @@ def load_image(filename):
     else:
         return Image.open(filename)
 
+def get_augmentations():
+    return Compose([
+        RandomHorizontalFlip(p=0.5),
+        RandomVerticalFlip(p=0.5),
+        RandomRotation(degrees=30, fill=0),
+        # Add more augmentations as needed
+    ])
 
 def unique_mask_values(idx, mask_dir, mask_suffix):
     mask_file = list(mask_dir.glob(idx + mask_suffix + '.*'))[0]
@@ -47,12 +55,13 @@ def count_mask_values(idx, mask_dir, mask_suffix, num_classes):
     return counts
 
 class BasicDataset(Dataset):
-    def __init__(self, images_dir: str, mask_dir: str, scale: float = 1.0, mask_suffix: str = ''):
+    def __init__(self, images_dir: str, mask_dir: str, scale: float = 1.0, mask_suffix: str = '', augmentations=None):
         self.images_dir = Path(images_dir)
         self.mask_dir = Path(mask_dir)
         assert 0 < scale <= 1, 'Scale must be between 0 and 1'
         self.scale = scale
         self.mask_suffix = mask_suffix
+        self.augmentations = augmentations
 
         self.ids = [splitext(file)[0] for file in listdir(images_dir) if isfile(join(images_dir, file)) and not file.startswith('.')]
         if not self.ids:
@@ -80,9 +89,11 @@ class BasicDataset(Dataset):
         counts = np.sum(counts_list, axis=0)
         prob = counts / np.sum(counts)
         
+        weights = torch.tensor(1 / (prob + 1e-6))
+
         # Calculate class weights (inverse of probabilities)
-        self.class_weights = torch.tensor(1 / (prob + 1e-6))
-        logging.info(f'Class weights values: {self.class_weights.numpy()}')
+        self.class_weights = torch.tensor(weights/np.sum(weights))
+        logging.info(f'Class weights values: {self.class_weights.numpy()}: {np.sum(self.class_weights.numpy())}')
 
 
 
@@ -134,6 +145,9 @@ class BasicDataset(Dataset):
 
         img = self.preprocess(self.mask_values, img, self.scale, is_mask=False)
         mask = self.preprocess(self.mask_values, mask, self.scale, is_mask=True)
+
+        if self.augmentations is not None:
+          img, mask = self.apply_augmentations(img, mask)
 
         return {
             'image': torch.as_tensor(img.copy()).float().contiguous(),
