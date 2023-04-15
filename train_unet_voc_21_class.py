@@ -34,8 +34,8 @@ def data_dir(voc_path = "/content/VOCdevkit/VOC2012"):
     trainval_file = os.path.join(voc_path, "ImageSets", "Segmentation", "trainval.txt")
 
     # define the paths to the imgs and masks folders
-    imgs_folder = "/content/unet_poc/data/imgs"
-    masks_folder = "/content/unet_poc/data/masks"
+    imgs_folder = "/content/unet_voc_Apr11/data/imgs"
+    masks_folder = "/content/unet_voc_Apr11/data/masks"
 
     # create the imgs and masks folders if they don't exist
     if not os.path.exists(imgs_folder):
@@ -84,7 +84,7 @@ def train_model(
     # 2. Split into train / validation partitions
     n_val = int(len(dataset) * val_percent)
     n_train = len(dataset) - n_val
-    train_set, val_set = random_split(dataset, [n_train, n_val], generator=torch.Generator().manual_seed(0))
+    train_set, val_set = random_split(dataset, [n_train, n_val], generator=torch.Generator().manual_seed(2))
 
     # 3. Create data loaders
     loader_args = dict(batch_size=batch_size, num_workers=os.cpu_count(), pin_memory=True)
@@ -114,7 +114,7 @@ def train_model(
     # 4. Set up the optimizer, the loss, the learning rate scheduler and the loss scaling for AMP
     optimizer = optim.RMSprop(model.parameters(),
                               lr=learning_rate, weight_decay=weight_decay, momentum=momentum, foreach=True)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=5)  # goal: maximize Dice score
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=15)  # goal: maximize Dice score
     grad_scaler = torch.cuda.amp.GradScaler(enabled=amp)
     criterion = nn.CrossEntropyLoss(weight=dataset.class_weights.to(device)) #if model.n_classes > 1 else nn.BCEWithLogitsLoss()
     global_step = 0
@@ -173,30 +173,24 @@ def train_model(
                 division_step = (n_train // (5 * batch_size))
                 if division_step > 0:
                     if global_step % division_step == 0:
-                        histograms = {}
-                        for tag, value in model.named_parameters():
-                            tag = tag.replace('/', '.')
-                            if not (torch.isinf(value) | torch.isnan(value)).any():
-                                histograms['Weights/' + tag] = wandb.Histogram(value.data.cpu())
-                            if not (torch.isinf(value.grad) | torch.isnan(value.grad)).any():
-                                histograms['Gradients/' + tag] = wandb.Histogram(value.grad.data.cpu())
 
                         val_score = evaluate(model, val_loader, device, amp)
                         scheduler.step(val_score)
 
                         logging.info('Validation Dice score: {}'.format(val_score))
                         try:
+                            
+                            
                             wandb.log({
                                 'learning rate': optimizer.param_groups[0]['lr'],
-                                'validation Dice': val_score,
+                                'val dice score': val_score,
                                 'images': wandb.Image(images[0].cpu()),
                                 'masks': {
                                     'true': wandb.Image(class_label_to_img_voc(true_masks[0].float().cpu())),
                                     'pred': wandb.Image(class_label_to_img_voc(masks_pred.argmax(dim=1)[0].float().cpu())),
                                 },
                                 'step': global_step,
-                                'epoch': epoch,
-                                **histograms
+                                'epoch': epoch
                             })
                         except:
                             pass
