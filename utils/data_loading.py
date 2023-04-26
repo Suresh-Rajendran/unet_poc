@@ -89,10 +89,10 @@ class BasicDataset(Dataset):
         counts = np.sum(counts_list, axis=0)
         prob = counts / np.sum(counts)
         
-        weights = torch.tensor(1 / (prob + 1e-6))
+        weights = 1 / (prob + 1e-6)
 
         # Calculate class weights (inverse of probabilities)
-        self.class_weights = torch.tensor(weights/np.sum(weights))
+        self.class_weights = torch.tensor(weights/np.sum(weights, axis=0))
         logging.info(f'Class weights values: {self.class_weights.numpy()}: {np.sum(self.class_weights.numpy())}')
 
 

@@ -2,6 +2,12 @@
 
 from .unet_parts import *
 from .activation import *
+import torch
+import torch.nn as nn
+from torchvision.models import resnet
+from torchvision.models.detection import MaskRCNN
+from torchvision.models.detection.backbone_utils import BackboneWithFPN
+from torchvision.ops import FeaturePyramidNetwork, misc_nn_ops
 
 
 class UNet(nn.Module):
@@ -47,3 +53,48 @@ class UNet(nn.Module):
         self.up3 = torch.utils.checkpoint(self.up3)
         self.up4 = torch.utils.checkpoint(self.up4)
         self.outc = torch.utils.checkpoint(self.outc)
+
+
+
+class CustomFPN(FeaturePyramidNetwork):
+    def __init__(self, act_func, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.act_func = Activation(act_func)
+
+        def _replace_relu(module):
+            for name, child in module.named_children():
+                if isinstance(child, nn.ReLU):
+                    setattr(module, name, self.act_func)
+                _replace_relu(child)
+
+        _replace_relu(self)
+
+
+# Create a custom ResNet model with the custom activation function
+class CustomResNet(resnet.ResNet):
+    def __init__(self, act_func = 'esh', *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        def _replace_relu(module):
+            for name, child in module.named_children():
+                if isinstance(child, nn.ReLU):
+                    setattr(module, name, Activation(act_func))
+                _replace_relu(child)
+
+        _replace_relu(self)
+
+
+# Function to generate the custom ResNet backbone with FPN
+def custom_resnet_fpn_backbone(arch, pretrained, act_func='esh', **kwargs):
+    backbone = CustomResNet(resnet.resnet._resnet(arch, resnet.Bottleneck, [3, 4, 6, 3], pretrained, **kwargs), act_func=act_func)
+    fpn = CustomFPN(act_func, in_channels_list=[256, 512, 1024, 2048], out_channels=256)
+    return BackboneWithFPN(backbone, return_layers={"layer1": "0", "layer2": "1", "layer3": "2", "layer4": "3"}, fpn=fpn)
+
+# Function to create a custom Mask R-CNN model with the custom backbone
+def create_custom_mask_rcnn_model(num_classes, act_func = 'esh'):
+    # Create the custom backbone with FPN
+    backbone = custom_resnet_fpn_backbone("resnet50", pretrained=True, act_func = act_func)
+
+    # Create the Mask R-CNN model with the custom backbone
+    model = MaskRCNN(backbone, num_classes=num_classes)
+    return model

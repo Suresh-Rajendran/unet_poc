@@ -1,0 +1,16 @@
+program: train_unet_coco.py
+method: grid
+metric:
+  name: loss
+  goal: minimize
+parameters:
+  optimizer:
+    values: ["Adam"]
+  batch_size:
+    values: [8]
+  epochs:
+    values: [2]
+  act:
+    values: ["relu", "mish", 'swish', 'esh', 'selu','gelu', 'leakyrelu']
+  version:
+    values: ['unet']
